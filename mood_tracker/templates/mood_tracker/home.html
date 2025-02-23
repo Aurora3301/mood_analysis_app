@@ -1,0 +1,14 @@
+{% extends 'mood_tracker/base.html' %}
+{% load i18n %}
+
+{% block content %}  {# Start of content block #}
+<div class="container">
+    <h1>{% translate "Welcome to Your Mood Logging Application" %}</h1>
+    <p>{% translate "Track your mood and emotions to gain insights into your well-being." %}</p>
+    <div class="navigation-links">
+        <a href="{% url 'face_recognition_page' %}">{% translate "Face Recognition" %}</a>
+        <a href="{% url 'mood_logging_page' %}">{% translate "Mood Logging" %}</a>
+        <a href="{% url 'analysis_page' %}">{% translate "Analysis Dashboard" %}</a>
+    </div>
+</div>
+{% endblock %} {# End of content block #}

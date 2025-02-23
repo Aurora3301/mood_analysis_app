@@ -1,0 +1,166 @@
+{% load i18n %}  {# **ADD THIS LINE AS THE VERY FIRST LINE** #}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% translate "Mood Logging" %}</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f8f0e3; color: #5e4d3a; }
+        .container { width: 80%; max-width: 800px; margin: 20px auto; }
+        h1 { color: #7a624a; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select, input[type="number"], input[type="text"], textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-bottom: 10px; }
+        select { appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url('data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); background-repeat: no-repeat; background-position-x: 100%; background-position-y: 5px; } /* Custom dropdown arrow */
+        button { padding: 10px 20px; background-color: #a38b72; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #8c7a67; }
+        .symptoms-checkboxes { display: flex; flex-direction: column; }
+        .symptoms-checkboxes label { font-weight: normal; margin-bottom: 3px; }
+        .symptoms-checkboxes input[type="checkbox"] { margin-right: 5px; }
+        nav { background-color: #d5cbb2; padding: 10px; margin-bottom: 20px; }
+        nav a { color: #5e4d3a; text-decoration: none; margin: 0 15px; }
+        nav a:hover { text-decoration: underline; }
+        #moodLogForm { text-align: left; } /* Align form elements to the left */
+        .form-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #fdfdfd; } /* Group form sections with borders */
+        .form-section h3 { color: #7a624a; margin-top: 0; margin-bottom: 10px; }
+        #successMessage, #errorMessage { text-align: center; margin-top: 15px; padding: 10px; border-radius: 5px; display: none; }
+        #successMessage { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        #errorMessage { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">{% translate "Home" %}</a>
+    </nav>
+    <div class="container">
+        <h1>{% translate "Log Your Mood Today" %}</h1>
+        <form id="moodLogForm">
+            {% csrf_token %}  {# **ADD {% csrf_token %} HERE INSIDE THE FORM TAG** #}
+
+            <div class="form-section">
+                <h3>{% translate "Mood Levels" %}</h3>
+                <div class="form-group">
+                    <label for="depressedMood">{% translate "Today's Depressed Mood:" %}</label>
+                    <select id="depressedMood" name="depressed_mood">
+                        <option value="0">{% translate "None" %}</option>
+                        <option value="1">{% translate "Mild Depression" %}</option>
+                        <option value="2">{% translate "Somewhat Depressed" %}</option>
+                        <option value="3">{% translate "Very Depressed" %}</option>
+                        <option value="4">{% translate "Extremely Depressed" %}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="elevatedMood">{% translate "Today's Elevated Mood:" %}</label>
+                    <select id="elevatedMood" name="elevated_mood">
+                        <option value="0">{% translate "None" %}</option>
+                        <option value="1">{% translate "Mild Mood Elevation" %}</option>
+                        <option value="2">{% translate "Somewhat Elevated Mood" %}</option>
+                        <option value="3">{% translate "Very Elevated Mood" %}</option>
+                        <option value="4">{% translate "Extremely Elevated Mood" %}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="irritability">{% translate "Today's Irritability:" %}</label>
+                    <select id="irritability" name="irritability">
+                        <option value="0">{% translate "None" %}</option>
+                        <option value="1">{% translate "Mild" %}</option>
+                        <option value="2">{% translate "Moderate" %}</option>
+                        <option value="3">{% translate "Severe" %}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="anxiety">{% translate "Today's Anxiety:" %}</label>
+                    <select id="anxiety" name="anxiety">
+                        <option value="0">{% translate "None" %}</option>
+                        <option value="1">{% translate "Mild" %}</option>
+                        <option value="2">{% translate "Moderate" %}</option>
+                        <option value="3">{% translate "Severe" %}</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>{% translate "Daily Information" %}</h3>
+                <div class="form-group">
+                    <label for="sleepHours">{% translate "Hours of Sleep:" %}</label>
+                    <input type="number" id="sleepHours" name="hours_of_sleep" min="0" max="24" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="energyLevel">{% translate "Energy Level (0-10):" %}</label>
+                    <input type="number" id="energyLevel" name="energy_level" min="0" max="10" value="5">
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>{% translate "Symptoms" %}</h3>
+                <div class="form-group symptoms-checkboxes">
+                    {% for symptom in symptoms %}
+                        <label>
+                            <input type="checkbox" name="symptoms" value="{{ symptom.id }}" id="symptom_{{ symptom.id }}">
+                            {{ symptom.get_name_display }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <button type="submit">{% translate "Log Mood" %}</button>
+        </form>
+        <div id="successMessage" style="display:none;">{% translate "Mood Log Saved Successfully!" %}</div>
+        <div id="errorMessage" style="display:none;">{% translate "Error saving mood log. Please try again." %}</div>
+    </div>
+
+    <script>
+        const moodLogForm = document.getElementById('moodLogForm');
+        const formMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+
+        moodLogForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const formData = new FormData(moodLogForm);
+            const data = {};
+            formData.forEach((value, key) => {
+                if (key === 'symptoms') {
+                    if (!data.symptoms) {
+                        data.symptoms = [];
+                    }
+                    data.symptoms.push(parseInt(value));
+                } else {
+                    data[key] = value;
+                }
+            });
+
+            fetch('/api/mood-logs/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken'), // **Correctly get CSRF token from formData**
+                },
+                body: JSON.stringify(data),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(JSON.stringify(err));
+                    });
+                }
+                return response.json();
+            })
+            .then(responseData => {
+                formMessage.style.display = 'block';
+                formMessage.style.color = 'green';
+                formMessage.textContent = "{% translate 'Mood Log Saved Successfully!' %}";
+                errorMessage.style.display = 'none';
+                moodLogForm.reset();
+                setTimeout(() => { formMessage.style.display = 'none'; }, 3000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                errorMessage.style.display = 'block';
+                errorMessage.style.color = 'red';
+                errorMessage.textContent = "{% translate 'Error saving mood log.' %} " + error.message;
+                formMessage.style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

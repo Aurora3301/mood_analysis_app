@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Recognition</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f8f0e3; color: #5e4d3a; } /* Warm tone background and text */
+        .container { width: 80%; margin: 20px auto; text-align: center; }
+        #videoStream, #processedCanvas { border: 1px solid #ccc; margin: 10px; }
+        button { padding: 10px 20px; background-color: #a38b72; color: white; border: none; cursor: pointer; } /* Therapy tone button */
+        button:hover { background-color: #8c7a67; }
+        #emotionData { margin-top: 20px; }
+        nav { background-color: #d5cbb2; padding: 10px; margin-bottom: 20px; } /* Therapy tone navigation bar */
+        nav a { color: #5e4d3a; text-decoration: none; margin: 0 15px; }
+        nav a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/">Home</a>
+        </nav>
+    <div class="container">
+        <h1>Face Recognition</h1>
+        <video id="videoStream" width="640" height="480" autoplay playsinline></video>
+        <canvas id="processedCanvas" width="640" height="480" style="display:none;"></canvas> <img id="processedImageDisplay" width="640" height="480" style="display:none;"> <button id="startRecognition">Start Recognition</button>
+        <button id="stopRecognition" disabled>Stop Recognition</button>
+        <div id="emotionData">
+            </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const videoStream = document.getElementById('videoStream');
+            const processedCanvas = document.getElementById('processedCanvas');
+            const processedImageDisplay = document.getElementById('processedImageDisplay'); // To display base64 image
+            const startRecognitionButton = document.getElementById('startRecognition');
+            const stopRecognitionButton = document.getElementById('stopRecognition');
+            const emotionDataDiv = document.getElementById('emotionData');
+            let stream;
+            let recognitionActive = false;
+            let processingInterval;
+
+
+            startRecognitionButton.addEventListener('click', async () => {
+                if (!recognitionActive) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                        videoStream.srcObject = stream;
+                        processedImageDisplay.style.display = 'block'; // Show image display
+                        startRecognitionButton.disabled = true;
+                        stopRecognitionButton.disabled = false;
+                        recognitionActive = true;
+                        startFrameProcessing(); // Start processing frames
+                    } catch (error) {
+                        console.error("Error accessing webcam:", error);
+                        alert("Error accessing webcam. Please make sure you have a webcam and permissions are granted.");
+                    }
+                }
+            });
+
+            stopRecognitionButton.addEventListener('click', () => {
+                if (recognitionActive) {
+                    stopFrameProcessing();
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        videoStream.srcObject = null;
+                    }
+                    processedImageDisplay.style.display = 'none'; // Hide image display
+                    startRecognitionButton.disabled = false;
+                    stopRecognitionButton.disabled = true;
+                    recognitionActive = false;
+                    emotionDataDiv.innerHTML = ''; // Clear emotion data display
+                }
+            });
+
+
+            function startFrameProcessing() {
+                processingInterval = setInterval(async () => {
+                    if (!recognitionActive) { // Double check in interval in case of race conditions
+                        clearInterval(processingInterval);
+                        return;
+                    }
+                    const canvasContext = processedCanvas.getContext('2d');
+                    canvasContext.drawImage(videoStream, 0, 0, processedCanvas.width, processedCanvas.height);
+                    const frameDataUrl = processedCanvas.toDataURL('image/jpeg'); // Get JPEG base64
+
+                    try {
+                        const response = await fetch('/api/process-face-frame/', { // Use your API endpoint URL
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded', // Or 'application/json' and JSON.stringify
+                                //'X-CSRFToken': getCookie('csrftoken')  // If CSRF protection is enabled
+                            },
+                            body: `image=${encodeURIComponent(frameDataUrl)}` // Or JSON.stringify({ image: frameDataUrl })
+                        });
+
+                        if (!response.ok) {
+                            console.error('API request failed:', response.status, response.statusText);
+                            stopRecognitionButton.click(); // Stop recognition on error
+                            alert('Face recognition processing error. Please try again.');
+                            return;
+                        }
+
+                        const data = await response.json();
+                        //console.log("API Response:", data); // For debugging
+
+                        if (data.error) {
+                            console.error('Backend error:', data.error);
+                            stopRecognitionButton.click();
+                            alert('Backend face recognition error: ' + data.error);
+                            return;
+                        }
+
+
+                        // Display processed image from base64
+                        processedImageDisplay.src = "data:image/jpeg;base64," + data.processed_image;
+
+                        // Display emotion data
+                        let emotionText = "Detected Emotions: ";
+                        if (data.detected_emotions && data.detected_emotions.length > 0) {
+                            emotionText += data.detected_emotions.join(', ');
+                        } else {
+                            emotionText += "None";
+                        }
+                        emotionText += "<br>Top Emotions: ";
+                        if (data.top_emotions && Object.keys(data.top_emotions).length > 0) {
+                            for (const emotion in data.top_emotions) {
+                                emotionText += `${emotion}: ${data.top_emotions[emotion].toFixed(2)}%, `;
+                            }
+                        } else {
+                            emotionText += "None";
+                        }
+                        emotionDataDiv.innerHTML = emotionText;
+
+
+                    } catch (error) {
+                        console.error('Fetch error:', error);
+                        stopRecognitionButton.click();
+                        alert('Error communicating with the server.');
+                    }
+                }, 1000); // Process frame every 1 second (adjust as needed)
+            }
+
+            function stopFrameProcessing() {
+                clearInterval(processingInterval);
+            }
+
+             // Function to get CSRF token if CSRF protection is enabled (for production)
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        let cookie = cookies[i].trim();
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.startsWith(name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+{% extends 'mood_tracker/base.html' %}
+{% load i18n %}
+{% load humanize %}
+
+{% block content %}
+    <div class="dashboard-container">
+        <h1 class="dashboard-title">{% translate "Mood Analysis Dashboard" %}</h1>
+
+        <section class="analysis-section">
+            <h2>{% translate "Mood Trends" %}</h2>
+            <div class="time-toggle">
+                <button class="toggle-btn active" data-period="week">7 Days</button>
+                <button class="toggle-btn" data-period="month">30 Days</button>
+            </div>
+            {{ daily_mood_avg_week|json_script:"daily_mood_avg_week_data" }}
+            {{ daily_mood_avg_month|json_script:"daily_mood_avg_month_data" }}
+            <canvas id="moodTrendChart" width="400" height="200"></canvas>
+        </section>
+
+        <section class="analysis-section">
+            <h2>{% translate "Emotion Distribution" %}</h2>
+            <div class="time-toggle">
+                <button class="toggle-btn active" data-period="week">7 Days</button>
+                <button class="toggle-btn" data-period="month">30 Days</button>
+            </div>
+            {{ daily_emotion_counts_week|json_script:"daily_emotion_counts_week_data" }}
+            {{ daily_emotion_counts_month|json_script:"daily_emotion_counts_month_data" }}
+            <canvas id="emotionPieChart" width="300" height="300"></canvas>
+        </section>
+
+        <section class="analysis-section">
+            <h2>{% translate "Mood Swings & Cycles" %}</h2>
+            <div class="time-toggle">
+                <button class="toggle-btn active" data-period="week">7 Days</button>
+                <button class="toggle-btn" data-period="month">30 Days</button>
+            </div>
+            <canvas id="moodCycleChart" width="400" height="200"></canvas>
+        </section>
+
+        <section class="analysis-section">
+            <h2>{% translate "Insights & Recommendations" %}</h2>
+            <div class="placeholder-text">
+                <p>{% translate "Personalized insights and recommendations coming soon..." %}</p>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <style>
+        .dashboard-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f7fa;
+        }
+        .dashboard-title {
+            color: #2c3e50;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .analysis-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        h2 {
+            color: #34495e;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        .time-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .toggle-btn {
+            padding: 8px 16px;
+            border: 1px solid #3498db;
+            border-radius: 4px;
+            background: #fff;
+            color: #3498db;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .toggle-btn.active, .toggle-btn:hover {
+            background: #3498db;
+            color: #fff;
+        }
+        .placeholder-text {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const weekMoodData = JSON.parse(document.getElementById('daily_mood_avg_week_data').textContent);
+            const monthMoodData = JSON.parse(document.getElementById('daily_mood_avg_month_data').textContent);
+            const weekEmotionData = JSON.parse(document.getElementById('daily_emotion_counts_week_data').textContent);
+            const monthEmotionData = JSON.parse(document.getElementById('daily_emotion_counts_month_data').textContent);
+
+            // Mood Trend Chart
+            const moodTrendCtx = document.getElementById('moodTrendChart').getContext('2d');
+            const moodTrendChart = new Chart(moodTrendCtx, {
+                type: 'bar', // Changed from 'line' to 'bar'
+                data: {
+                    labels: weekMoodData.map(item => item.timestamp__date),
+                    datasets: [
+                        {
+                            label: 'Depressed Mood',
+                            data: weekMoodData.map(item => item.avg_depressed_mood),
+                            backgroundColor: '#3498db' // Changed from borderColor
+                        },
+                        {
+                            label: 'Elevated Mood',
+                            data: weekMoodData.map(item => item.avg_elevated_mood),
+                            backgroundColor: '#e74c3c'
+                        },
+                        {
+                            label: 'Irritability',
+                            data: weekMoodData.map(item => item.avg_irritability),
+                            backgroundColor: '#f1c40f'
+                        },
+                        {
+                            label: 'Anxiety',
+                            data: weekMoodData.map(item => item.avg_anxiety),
+                            backgroundColor: '#2ecc71'
+                        },
+                        {
+                            label: 'Energy Level',
+                            data: weekMoodData.map(item => item.avg_energy_level),
+                            backgroundColor: '#9b59b6'
+                        },
+                        {
+                            label: 'Sleep Hours',
+                            data: weekMoodData.map(item => item.avg_hours_of_sleep),
+                            backgroundColor: '#7f8c8d'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day' } },
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+            // Emotion Pie Chart
+            const emotionPieCtx = document.getElementById('emotionPieChart').getContext('2d');
+            const emotionCountsWeek = weekEmotionData.reduce((acc, item) => {
+                acc[item.emotion] = (acc[item.emotion] || 0) + item.count;
+                return acc;
+            }, {});
+            const emotionPieChart = new Chart(emotionPieCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(emotionCountsWeek),
+                    datasets: [{
+                        data: Object.values(emotionCountsWeek),
+                        backgroundColor: ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#7f8c8d']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' }, title: { display: true, text: 'Emotion Distribution' } }
+                }
+            });
+
+            // Mood Cycle Chart (Bar Chart for Swings)
+            const moodCycleCtx = document.getElementById('moodCycleChart').getContext('2d');
+            const moodCycleChart = new Chart(moodCycleCtx, {
+                type: 'bar',
+                data: {
+                    labels: weekMoodData.map(item => item.timestamp__date),
+                    datasets: [{
+                        label: 'Mood Variance',
+                        data: weekMoodData.map(item => Math.max(item.avg_depressed_mood, item.avg_elevated_mood) - Math.min(item.avg_depressed_mood, item.avg_elevated_mood)),
+                        backgroundColor: '#3498db'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { x: { type: 'time', time: { unit: 'day' } }, y: { beginAtZero: true } }
+                }
+            });
+
+            // Toggle Functionality
+            document.querySelectorAll('.time-toggle .toggle-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const period = this.dataset.period;
+                    this.parentElement.querySelector('.active').classList.remove('active');
+                    this.classList.add('active');
+
+                    if (this.closest('.analysis-section').querySelector('#moodTrendChart')) {
+                        moodTrendChart.data.labels = (period === 'week' ? weekMoodData : monthMoodData).map(item => item.timestamp__date);
+                        moodTrendChart.data.datasets.forEach((dataset, i) => {
+                            const key = ['avg_depressed_mood', 'avg_elevated_mood', 'avg_irritability', 'avg_anxiety', 'avg_energy_level', 'avg_hours_of_sleep'][i];
+                            dataset.data = (period === 'week' ? weekMoodData : monthMoodData).map(item => item[key]);
+                        });
+                        moodTrendChart.update();
+                    } else if (this.closest('.analysis-section').querySelector('#emotionPieChart')) {
+                        const data = period === 'week' ? weekEmotionData : monthEmotionData;
+                        const counts = data.reduce((acc, item) => {
+                            acc[item.emotion] = (acc[item.emotion] || 0) + item.count;
+                            return acc;
+                        }, {});
+                        emotionPieChart.data.labels = Object.keys(counts);
+                        emotionPieChart.data.datasets[0].data = Object.values(counts);
+                        emotionPieChart.update();
+                    } else if (this.closest('.analysis-section').querySelector('#moodCycleChart')) {
+                        const data = period === 'week' ? weekMoodData : monthMoodData;
+                        moodCycleChart.data.labels = data.map(item => item.timestamp__date);
+                        moodCycleChart.data.datasets[0].data = data.map(item => Math.max(item.avg_depressed_mood, item.avg_elevated_mood) - Math.min(item.avg_depressed_mood, item.avg_elevated_mood));
+                        moodCycleChart.update();
+                    }
+                });
+            });
+        });
+    </script>
+{% endblock %}
