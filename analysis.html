@@ -1,254 +1,54 @@
-{% extends 'mood_tracker/base.html' %}
-{% load i18n %}
-{% load humanize %}
+// Symptom Bubble Chart (unchanged)
+            const symptomBubbleCtx = document.getElementById('symptomBubbleChart').getContext('2d');
 
-{% block content %}
-    <h1>{% translate "Mood Analysis Dashboard" %}</h1>
+            function getSymptomBubbleData(emotionData, emtionColorMap, emotionLabelOrder) {
+                const emotionCounts = emotionData.reduce((acc, item) => {
+                    acc[item.name] = item.count;
+                    return acc;
+                }, {});
+                return emotionLabelOrder.map((emtion, index) => ({
+                    x: index,
+                    y: 0,
+                    r: (emotionCounts[emotion] || 0) * 5,
+                    count: emotionCounts[emotion] || 0,
+                    emotionName: emotion
+                }));
+            }
 
-    <p>Test of intcomma: {{ 1234567|intcomma }}</p>  {# Test intcomma tag from humanize #}
-
-    <div class="analysis-section">
-        <h2>{% translate "Mood Trends (Last 7 Days)" %}</h2>
-        {% json_script daily_mood_avg_week "daily_mood_avg_week_data" %}
-        <canvas id="moodTrendChartWeek" width="400" height="200"></canvas>
-    </div>
-    
-    <div class="analysis-section">
-        <h2>{% translate "Mood Trends (Last 30 Days)" %}</h2>
-        {% json_script daily_mood_avg_month "daily_mood_avg_month_data" %}
-        <canvas id="moodTrendChartMonth" width="400" height="200"></canvas>
-    </div>
-
-    <div class="analysis-section">
-        <h2>{% translate "Daily Emotion Distribution (Last 7 Days)" %}</h2>
-        {% json_script daily_emotion_counts_week "daily_emotion_counts_week_data" %}
-        <canvas id="emotionPieChartWeek" width="400" height="400"></canvas>
-    </div>
-
-    <div class="analysis-section">
-        <h2>{% translate "Daily Emotion Distribution (Last 30 Days)" %}</h2>
-        {% json_script daily_emotion_counts_month "daily_emotion_counts_month_data" %}
-        <canvas id="emotionPieChartMonth" width="400" height="400"></canvas>
-    </div>
-
-    <div class="analysis-section">
-        <h2>{% translate "AI Chatbot Suggestions" %}</h2>
-        <div id="aiChatbotOutput">
-            <p>{% translate "AI Chatbot suggestions will appear here..." %}</p>
-            {# Future: Integrate AI Chatbot output here #}
-        </div>
-    </div>
-
-    <div class="analysis-section">
-        <h2>{% translate "Mood Cycle Predictions" %}</h2>
-        <div id="moodCyclePredictions">
-            <p>{% translate "Mood cycle predictions will appear here..." %}</p>
-            {# Future: Integrate Mood Cycle Predictions here #}
-        </div>
-    </div>
-
-    <div class="analysis-section">
-        <h2>{% translate "Personalized Recommendations" %}</h2>
-        <div id="personalizedRecommendations">
-            <p>{% translate "Personalized recommendations will appear here..." %}</p>
-            {# Future: Integrate Personalized Recommendations here #}
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // --- Mood Trend Chart (Week) ---
-            const moodTrendChartWeekCtx = document.getElementById('moodTrendChartWeek').getContext('2d');
-            const dailyMoodAvgWeekData = JSON.parse(document.getElementById('daily_mood_avg_week_data').textContent); // Get data from json_script
-            const moodTrendChartWeek = new Chart(moodTrendChartWeekCtx, {
-                type: 'line',
+            const emotionBubbleChart = new Chart(emotionBubbleCtx, {
+                type: 'bubble',
                 data: {
-                    labels: dailyMoodAvgWeekData.map(item => item.timestamp__date),
                     datasets: [{
-                        label: '{% translate "Depressed Mood" %}',
-                        data: dailyMoodAvgWeekData.map(item => item.avg_depressed_mood),
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Elevated Mood" %}',
-                        data: dailyMoodAvgWeekData.map(item => item.avg_elevated_mood),
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Irritability" %}',
-                        data: dailyMoodAvgWeekData.map(item => item.avg_irritability),
-                        borderColor: 'rgba(255, 206, 86, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Anxiety" %}',
-                        data: dailyMoodAvgWeekData.map(item => item.avg_anxiety),
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Energy Level" %}',
-                        data: dailyMoodAvgWeekData.map(item => item.avg_energy_level),
-                        borderColor: 'rgba(153, 102, 255, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Hours of Sleep" %}',
-                        data: dailyMoodAvgWeekData.map(item => item.avg_hours_of_sleep),
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        fill: false
+                        label: 'Emotions',
+                        data: getEmotionBubbleData(weekEmotionData, emtionColorsWeek, currentEmotionOrder),
+                        backgroundColor: function(context) {
+                            const emotionName = currentEmotionOrder[context.dataIndex];
+                            return currentEmotionColors[emotionName] || 'rgba(52, 152, 219, 0.5)';
+                        },
+                        borderColor: 'rgba(231, 76, 60, 1)'
                     }]
                 },
                 options: {
                     responsive: true,
                     scales: {
                         x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day'
-                            }
+                            type: 'category',
+                            labels: currentEmotionOrder,
+                            ticks: { autoSkip: false }
                         },
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-
-            // --- Mood Trend Chart (Month) ---
-             const moodTrendChartMonthCtx = document.getElementById('moodTrendChartMonth').getContext('2d');
-            const dailyMoodAvgMonthData = JSON.parse(document.getElementById('daily_mood_avg_month_data').textContent); // Get data from json_script
-            const moodTrendChartMonth = new Chart(moodTrendChartMonthCtx, {
-                type: 'line',
-                data: {
-                    labels: dailyMoodAvgMonthData.map(item => item.timestamp__date),
-                    datasets: [{
-                        label: '{% translate "Depressed Mood" %}',
-                        data: dailyMoodAvgMonthData.map(item => item.avg_depressed_mood),
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Elevated Mood" %}',
-                        data: dailyMoodAvgMonthData.map(item => item.avg_elevated_mood),
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Irritability" %}',
-                        data: dailyMoodAvgMonthData.map(item => item.avg_irritability),
-                        borderColor: 'rgba(255, 206, 86, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Anxiety" %}',
-                        data: dailyMoodAvgMonthData.map(item => item.avg_anxiety),
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Energy Level" %}',
-                        data: dailyMoodAvgMonthData.map(item => item.avg_energy_level),
-                        borderColor: 'rgba(153, 102, 255, 1)',
-                        fill: false
-                    }, {
-                        label: '{% translate "Hours of Sleep" %}',
-                        data: dailyMoodAvgMonthData.map(item => item.avg_hours_of_sleep),
-                        borderColor: 'rgba(255, 159, 64, 1)',
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day'
-                            }
-                        },
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-
-
-            // --- Emotion Pie Chart (Week) ---
-            const emotionPieChartWeekCtx = document.getElementById('emotionPieChartWeek').getContext('2d');
-            const emotionDataWeek = JSON.parse(document.getElementById('daily_emotion_counts_week_data').textContent); // Get data from json_script
-            const emotionLabelsWeek = Array.from(new Set(emotionDataWeek.map(item => item.emotion)));
-            const emotionCountsWeek = emotionDataWeek.reduce((acc, item) => {
-                acc[item.emotion] = (acc[item.emotion] || 0) + item.count;
-                return acc;
-            }, {});
-            const emotionPieChartWeek = new Chart(emotionPieChartWeekCtx, {
-                type: 'pie',
-                data: {
-                    labels: emotionLabelsWeek.map(emotion => '{% translate emotion|capfirst %}'), // Translate emotion labels
-                    datasets: [{
-                        data: emotionLabelsWeek.map(emotion => emotionCountsWeek[emotion] || 0),
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.8)',
-                            'rgba(54, 162, 235, 0.8)',
-                            'rgba(255, 206, 86, 0.8)',
-                            'rgba(75, 192, 192, 0.8)',
-                            'rgba(153, 102, 255, 0.8)',
-                            'rgba(255, 159, 64, 0.8)',
-                            'rgba(199, 199, 199, 0.8)'
-                        ],
-                    }]
-                },
-                options: {
-                    responsive: true,
+                        y: { display: false }
+                    },
                     plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '{% translate "Emotion Distribution - Last 7 Days" %}'
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const emotion = currentEmotionOrder[context.dataIndex];
+                                    const count = context.raw.count;
+                                    return `${symptom}: ${count}`;
+                                }
                             }
-                    }
-                }
-            });
-
-             // --- Emotion Pie Chart (Month) ---
-            const emotionPieChartMonthCtx = document.getElementById('emotionPieChartMonth').getContext('2d');
-            const emotionDataMonth = JSON.parse(document.getElementById('daily_emotion_counts_month_data').textContent); // Get data from json_script
-            const emotionLabelsMonth = Array.from(new Set(emotionDataMonth.map(item => item.emotion)));
-            const emotionCountsMonth = emotionDataMonth.reduce((acc, item) => {
-                acc[item.emotion] = (acc[item.emotion] || 0) + item.count;
-                return acc;
-            }, {});
-            const emotionPieChartMonth = new Chart(emotionPieChartMonthCtx, {
-                type: 'pie',
-                data: {
-                    labels: emotionLabelsMonth.map(emotion => '{% translate emotion|capfirst %}'), // Translate emotion labels
-                    datasets: [{
-                        data: emotionLabelsMonth.map(emotion => emotionCountsMonth[emotion] || 0),
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.8)',
-                            'rgba(54, 162, 235, 0.8)',
-                            'rgba(255, 206, 86, 0.8)',
-                            'rgba(75, 192, 192, 0.8)',
-                            'rgba(153, 102, 255, 0.8)',
-                            'rgba(255, 159, 64, 0.8)',
-                            'rgba(199, 199, 199, 0.8)'
-                        ],
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        title: {
-                            display: true,
-                            text: '{% translate "Emotion Distribution - Last 30 Days" %}'
                         }
                     }
                 }
             });
-
-
-        });
-    </script>
-
-{% endblock %}

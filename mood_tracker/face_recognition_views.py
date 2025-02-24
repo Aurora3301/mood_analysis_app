@@ -1,45 +1,39 @@
-# mood_tracker/face_recognition_views.py
-
 import sys
 import os
 
 # Get the directory containing your mood_tracker app
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-# Add the app directory to Python's sys.path
+# Add the app directory to Python's sys.path if necessary
 sys.path.insert(0, APP_DIR)
 
-# Now your imports should work (hopefully)
 from utils.datasets import get_labels
 import cv2
 import numpy as np
 from keras.models import load_model
 from statistics import mode
 from collections import Counter
-from utils.datasets import get_labels # Make sure utils is in mood_tracker or adjust path
-from utils.inference import detect_faces # Make sure utils is in mood_tracker or adjust path
-from utils.inference import draw_text # Make sure utils is in mood_tracker or adjust path
-from utils.inference import draw_bounding_box # Make sure utils is in mood_tracker or adjust path
-from utils.inference import apply_offsets # Make sure utils is in mood_tracker or adjust path
-from utils.inference import load_detection_model # Make sure utils is in mood_tracker or adjust path
+from utils.datasets import get_labels  # Adjust path as needed
+from utils.inference import detect_faces  # Adjust path as needed
+from utils.inference import draw_text     # Adjust path as needed
+from utils.inference import draw_bounding_box  # Adjust path as needed
+from utils.inference import apply_offsets  # Adjust path as needed
+from utils.inference import load_detection_model  # Adjust path as needed
 from PIL import Image
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import base64
-from django.conf import settings # Import settings to use static paths if needed
-from .models import FaceRecognitionLog # Import your FaceRecognitionLog model
-
+from django.conf import settings  # In case you need settings for static paths
+from .models import FaceRecognitionLog  # Your model for logging
 
 # --- Configuration and Model Loading ---
-# **Important:** Adjust paths to be relative to your Django project structure.
-# Place 'models' and 'utils' folders inside your mood_tracker app, or adjust paths accordingly.
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Project base directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project base directory
 
-emotion_model_path = os.path.join(BASE_DIR, 'mood_tracker', 'models', 'emotion_model.hdf5') # Correct path to model
-face_cascade_path = os.path.join(BASE_DIR, 'mood_tracker', 'models', 'haarcascade_frontalface_default.xml') # Correct path to haarcascade
-emotion_labels_path = os.path.join(BASE_DIR, 'mood_tracker', 'utils', 'datasets', 'datasets.py') # Assuming labels file is needed
-emotion_labels = get_labels('fer2013')  # Assuming labels file is in utils/datasets
+emotion_model_path = os.path.join(BASE_DIR, 'mood_tracker', 'models', 'emotion_model.hdf5')
+face_cascade_path = os.path.join(BASE_DIR, 'mood_tracker', 'models', 'haarcascade_frontalface_default.xml')
+# If you need the labels file, ensure it is in the proper location
+emotion_labels = get_labels('fer2013')
 frame_window = 10
 emotion_offsets = (20, 40)
 
@@ -48,7 +42,7 @@ if face_cascade.empty():
     print("Error loading face cascade!")
 
 emotion_classifier = load_model(emotion_model_path, compile=False)
-from keras.optimizers import Adam # type: ignore
+from keras.optimizers import Adam  # type: ignore
 emotion_classifier.compile(
     optimizer=Adam(learning_rate=0.0001),
     loss='categorical_crossentropy',
@@ -80,7 +74,7 @@ def detect_emotions_in_frame(frame):
         gray_face = gray_image[y1:y2, x1:x2]
         try:
             gray_face = cv2.resize(gray_face, (emotion_target_size))
-        except:
+        except Exception as e:
             continue
         gray_face = preprocess_input(gray_face, True)
         gray_face = np.expand_dims(gray_face, 0)
@@ -98,6 +92,7 @@ def detect_emotions_in_frame(frame):
             emotion_mode = mode(emotion_window)
         except:
             continue
+        # Define a simple color scheme based on emotion
         if emotion_text == 'angry':
             color = emotion_probability * np.asarray((255, 0, 0))
         elif emotion_text == 'sad':
@@ -111,58 +106,66 @@ def detect_emotions_in_frame(frame):
         color = color.astype(int)
         color = color.tolist()
         draw_bounding_box(face_coordinates, rgb_image, color)
-        draw_text(face_coordinates, rgb_image, emotion_mode,
-                  color, 0, -45, 1, 1)
+        draw_text(face_coordinates, rgb_image, emotion_mode, color, 0, -45, 1, 1)
     return rgb_image, emotions
 
 def get_top_emotions():
     emotion_counts = Counter(all_emotions)
     total_emotions = sum(emotion_counts.values())
-    top_3_emotions = emotion_counts.most_common(3) # changed to top 3 for richer analysis
+    if total_emotions == 0:
+        return {}
+    top_3_emotions = emotion_counts.most_common(3)
     return {emotion: (count / total_emotions) * 100 for emotion, count in top_3_emotions}
 
-
-@csrf_exempt  # For simplicity in this example, disable CSRF (for production, handle CSRF properly)
+@csrf_exempt
 def process_face_recognition_frame(request):
+    """
+    Process the incoming face frame:
+      - Decode the base64 image.
+      - Run face detection and emotion recognition.
+      - Return the processed image and emotion data.
+    """
     if request.method == 'POST':
         try:
-            image_data = request.POST.get('image') # or request.body if sending raw data
+            image_data = request.POST.get('image')
             if not image_data:
                 return JsonResponse({'error': 'No image data received'}, status=400)
 
-            # Decode base64 image
-            base64_data = image_data.split(',')[1] # remove header if present
+            # Decode the base64 image (remove header if present)
+            if ',' in image_data:
+                base64_data = image_data.split(',')[1]
+            else:
+                base64_data = image_data
             image_bytes = base64.b64decode(base64_data)
             nparr = np.frombuffer(image_bytes, np.uint8)
             frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
             if frame is None:
                 return JsonResponse({'error': 'Failed to decode image'}, status=400)
 
             processed_frame, detected_emotions = detect_emotions_in_frame(frame)
-
-            # Get top emotions for analysis
             top_emotions = get_top_emotions()
 
-            # Convert processed frame to base64 for web display
+            # Convert processed frame to base64 for display
             is_success, im_buf_arr = cv2.imencode(".jpg", processed_frame)
             if not is_success:
                 return JsonResponse({'error': 'Failed to encode processed image'}, status=500)
             processed_image_base64 = base64.b64encode(im_buf_arr.tobytes()).decode('utf-8')
 
-            # Save detected emotion to database (using the most frequent emotion for simplicity)
+            # Save detected emotion (if any) to the database; using the dominant emotion for simplicity.
             if detected_emotions:
-                dominant_emotion = mode(detected_emotions) # Get most frequent emotion
-                FaceRecognitionLog.objects.create(emotion=dominant_emotion) # Save to model
+                try:
+                    dominant_emotion = mode(detected_emotions)
+                    FaceRecognitionLog.objects.create(emotion=dominant_emotion)
+                except Exception as e:
+                    print(f"Error saving emotion log: {e}")
 
             return JsonResponse({
                 'processed_image': processed_image_base64,
                 'detected_emotions': detected_emotions,
-                'top_emotions': top_emotions
+                'top_emotions': top_emotions,
             })
-
         except Exception as e:
-            print(f"Error processing image: {e}") # Log detailed error on server side
+            print(f"Error processing image: {e}")
             return JsonResponse({'error': 'Error processing image'}, status=500)
     else:
         return JsonResponse({'error': 'Invalid request method'}, status=405)
