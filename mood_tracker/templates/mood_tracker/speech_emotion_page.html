@@ -1,0 +1,44 @@
+{% extends 'mood_tracker/base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Speech Emotion Recognition</h1>
+    <button id="recordBtn">Start Recording</button>
+    <audio id="audioPlayback" controls></audio>
+    <div id="result"></div>
+</div>
+
+<script>
+let mediaRecorder, audioChunks = [];
+navigator.mediaDevices.getUserMedia({ audio: true })
+.then(stream => {
+    mediaRecorder = new MediaRecorder(stream);
+    
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'recording.wav');
+        
+        const response = await fetch("{% url 'speech_emotion_page' %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-CSRFToken': '{{ csrf_token }}'}
+        });
+        const data = await response.json();
+        document.getElementById('result').innerHTML = `Detected Emotion: ${data.emotion}`;
+        audioChunks = [];
+    };
+});
+
+document.getElementById('recordBtn').addEventListener('click', () => {
+    if (mediaRecorder.state === 'inactive') {
+        mediaRecorder.start();
+        recordBtn.textContent = 'Stop Recording';
+    } else {
+        mediaRecorder.stop();
+        recordBtn.textContent = 'Start Recording';
+    }
+});
+</script>
+{% endblock %}

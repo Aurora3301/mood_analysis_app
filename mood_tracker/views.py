@@ -5,6 +5,13 @@ from datetime import timedelta
 from .models import FaceRecognitionLog, MoodLog, Symptom, Article
 from .serializers import FaceRecognitionLogSerializer, MoodLogSerializer, ArticleSerializer
 from rest_framework import viewsets
+from django.http import JsonResponse
+import tempfile
+import os
+import numpy as np
+import librosa
+from tensorflow.keras.models import load_model
+from .models import SpeechEmotionLog
 
 # Additional imports for the new view
 from django.http import JsonResponse
@@ -39,6 +46,45 @@ def mood_logging_page(request):
         'symptoms': Symptom.objects.all(),
         'current_date': timezone.now().date()
     })
+
+ser_model = load_model("mood_tracker/ser_model.h5")
+emotion_labels = {0: "angry", 1: "disgust", 2: "fear", 3: "happy", 4: "ps", 5: "sad", 6: "neutral"}
+max_frames = 200
+
+def predict_emotion(audio_path):
+    audio, sr = librosa.load(audio_path, sr=16000)
+    audio = audio / np.max(np.abs(audio))
+    
+    segment_samples = 2 * sr
+    segments = [audio[i*segment_samples:(i+1)*segment_samples] 
+               for i in range(len(audio)//segment_samples)]
+    
+    predictions = []
+    for segment in segments:
+        mfcc = librosa.feature.mfcc(y=segment, sr=sr, n_mfcc=40, n_fft=2048, hop_length=512)
+        if mfcc.shape[1] > max_frames:
+            mfcc = mfcc[:, :max_frames]
+        else:
+            padding = max_frames - mfcc.shape[1]
+            mfcc = np.pad(mfcc, ((0, 0), (0, padding)), mode='constant')
+        mfcc_input = mfcc[np.newaxis, ..., np.newaxis]
+        pred = ser_model.predict(mfcc_input, verbose=0)
+        predictions.append(pred[0])
+    
+    avg_pred = np.mean(predictions, axis=0)
+    return emotion_labels[np.argmax(avg_pred)]
+
+def speech_emotion_page(request):
+    if request.method == 'POST' and request.FILES.get('audio'):
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            for chunk in request.FILES['audio'].chunks():
+                tmp_file.write(chunk)
+            emotion = predict_emotion(tmp_file.name)
+            SpeechEmotionLog.objects.create(emotion=emotion)
+            os.unlink(tmp_file.name)
+            return JsonResponse({'emotion': emotion})
+    return render(request, 'mood_tracker/speech_emotion_page.html')
+
 
 def analysis_page(request):
     # Date calculations
@@ -96,6 +142,16 @@ def analysis_page(request):
             moodlog__timestamp__date__gte=past_month
         ).annotate(count=Count('moodlog'))
     ]
+    # Add to context
+    daily_speech_emotion_week = SpeechEmotionLog.objects.filter(
+        timestamp__date__gte=past_week
+    ).values('emotion').annotate(count=Count('emotion'))
+
+    daily_speech_emotion_month = SpeechEmotionLog.objects.filter(
+        timestamp__date__gte=past_month
+    ).values('emotion').annotate(count=Count('emotion'))
+
+    
 
     context = {
         'daily_mood_avg_week': list(daily_mood_avg_week),
@@ -104,6 +160,9 @@ def analysis_page(request):
         'daily_emotion_counts_month': list(daily_emotion_counts_month),
         'symptom_counts_week': symptom_counts_week,
         'symptom_counts_month': symptom_counts_month,
+        'daily_speech_emotion_week': list(daily_speech_emotion_week),
+        'daily_speech_emotion_month': list(daily_speech_emotion_month),
+   
     }
     return render(request, 'mood_tracker/analysis_page.html', context)
 

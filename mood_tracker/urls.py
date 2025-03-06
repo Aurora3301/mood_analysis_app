@@ -6,7 +6,8 @@ from .views import (
     home_page,
     face_recognition_page,
     mood_logging_page,
-    analysis_page
+    analysis_page,
+    speech_emotion_page,
 )
 from .face_recognition_views import process_face_recognition_frame  # Import the new view
 
@@ -22,4 +23,6 @@ urlpatterns = [
     path('face-recognition/', face_recognition_page, name='face_recognition_page'),
     path('mood-logging/', mood_logging_page, name='mood_logging_page'),
     path('analysis/', analysis_page, name='analysis_page'),
+    path('speech-emotion/', speech_emotion_page, name='speech_emotion_page'),
+
 ]

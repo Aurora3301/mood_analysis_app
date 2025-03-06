@@ -131,6 +131,25 @@ class MoodLog(models.Model):
         verbose_name_plural = _("Mood Logs")
         ordering = ['-timestamp']
 
+class SpeechEmotionLog(models.Model):
+    timestamp = models.DateTimeField(auto_now_add=True)
+    emotion = models.CharField(max_length=20, choices=[
+        ('angry', 'Angry'),
+        ('disgust', 'Disgust'),
+        ('fear', 'Fear'),
+        ('happy', 'Happy'),
+        ('ps', 'Pleasant Surprise'),
+        ('sad', 'Sad'),
+        ('neutral', 'Neutral'),
+    ])
+
+    def __str__(self):
+        return f"{self.timestamp} - {self.emotion}"
+
+    class Meta:
+        verbose_name = "Speech Emotion Log"
+        verbose_name_plural = "Speech Emotion Logs"
+        ordering = ['-timestamp']
 
 class FaceRecognitionLog(models.Model):
     """
