@@ -4,37 +4,70 @@
 <div class="container">
     <h1>Speech Emotion Recognition</h1>
     <button id="recordBtn">Start Recording</button>
-    <audio id="audioPlayback" controls></audio>
     <div id="result"></div>
 </div>
 
 <script>
-let mediaRecorder, audioChunks = [];
+let mediaRecorder, audioChunks = [], isProcessing = false;
+const recordBtn = document.getElementById('recordBtn');
+const resultDiv = document.getElementById('result');
+
+// Request microphone access and set up MediaRecorder
 navigator.mediaDevices.getUserMedia({ audio: true })
 .then(stream => {
     mediaRecorder = new MediaRecorder(stream);
     
+    // Collect audio data chunks
     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    
+    // Handle stopping of recording and fetching emotion
     mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.wav');
+        isProcessing = true;
+        recordBtn.disabled = true;
+        resultDiv.innerHTML = 'Processing audio...'; // Fetching text during processing
         
-        const response = await fetch("{% url 'speech_emotion_page' %}", {
-            method: 'POST',
-            body: formData,
-            headers: { 'X-CSRFToken': '{{ csrf_token }}'}
-        });
-        const data = await response.json();
-        document.getElementById('result').innerHTML = `Detected Emotion: ${data.emotion}`;
-        audioChunks = [];
+        try {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+            
+            const response = await fetch("{% url 'speech_emotion_page' %}", {
+                method: 'POST',
+                body: formData,
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            resultDiv.innerHTML = `Detected Emotion: ${data.emotion}`; // Display result
+        } catch (error) {
+            console.error('Error:', error);
+            resultDiv.innerHTML = 'Error processing audio.'; // Error feedback
+        } finally {
+            isProcessing = false;
+            recordBtn.disabled = false;
+            audioChunks = []; // Reset chunks for next recording
+        }
     };
+})
+.catch(err => {
+    console.error('Microphone access denied:', err);
+    resultDiv.innerHTML = 'Error: Please allow microphone access.';
 });
 
-document.getElementById('recordBtn').addEventListener('click', () => {
+// Button click handler for start/stop recording
+recordBtn.addEventListener('click', () => {
+    if (isProcessing) {
+        return; // Prevent action while processing
+    }
+    
     if (mediaRecorder.state === 'inactive') {
         mediaRecorder.start();
         recordBtn.textContent = 'Stop Recording';
+        resultDiv.innerHTML = 'Recording...'; // Feedback during recording
     } else {
         mediaRecorder.stop();
         recordBtn.textContent = 'Start Recording';

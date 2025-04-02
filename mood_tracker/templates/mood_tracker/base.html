@@ -2,27 +2,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-
     <title>{% translate "Mood Tracker Application" %}</title>
     <style>
-        body { font-family: sans-serif; background-color: #f8f0e3; color: #5e4d3a; margin: 0; padding: 0; }
-        .container { width: 80%; max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        nav { background-color: #d5cbb2; padding: 10px; margin-bottom: 20px; }
-        nav a { color: #5e4d3a; text-decoration: none; margin: 0 15px; }
-        nav a:hover { text-decoration: underline; }
+        body {
+            font-family: 'Arial', sans-serif; /* Modern, clean font */
+            background-color: #f8f0e3; /* Light Sand Background */
+            color: #5e4d3a; /* Dark Brown Text */
+            margin: 0;
+            padding: 0;
+            display: flex; /* For overall layout */
+            flex-direction: column; /* Stack elements vertically */
+            min-height: 100vh; /* Ensure full viewport height */
+        }
+
+        .container {
+            width: 90%; /* Wider container for a more spacious feel */
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 30px; /* Increased padding for more space */
+            background-color: #fff; /* White container background */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); /* Softer shadow */
+            border-radius: 15px; /* Rounded corners for cozy feel */
+            flex: 1; /* Allow container to grow and take available space */
+        }
+
+        nav {
+            background-color: #77aca2; /* Deep Sea Green Navbar */
+            padding: 15px 20px; /* Padding for navbar */
+            margin-bottom: 30px; /* Increased margin below navbar */
+            border-radius: 0 0 15px 15px; /* Rounded bottom corners for navbar */
+            display: flex;
+            justify-content: space-around; /* Space out nav links */
+        }
+
+        nav a {
+            color: #f8f0e3; /* Light Sand Link Color */
+            text-decoration: none;
+            padding: 10px 15px; /* Padding for nav links */
+            border-radius: 8px; /* Rounded corners for nav links */
+            transition: background-color 0.3s ease; /* Smooth hover transition */
+            font-weight: bold; /* Make nav links bold */
+        }
+
+        nav a:hover {
+            background-color: #a3c4bc; /* Seafoam Green on Hover */
+            text-decoration: none; /* Remove underline on hover */
+        }
+
+        /* Back padding (assuming you meant 'link') to speech_emotion_page */
+        .back-padding-link {
+            margin-top: 20px; /* Add margin above the link */
+            text-align: center; /* Center align the link */
+        }
+
+        .back-padding-link a {
+            display: inline-block; /* Make it behave like a block but inline */
+            padding: 10px 20px;
+            background-color: #a3c4bc; /* Seafoam Green for button background */
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .back-padding-link a:hover {
+            background-color: #77aca2; /* Deep Sea Green on hover */
+        }
+
+        h1, h2, h3 {
+            color: #77aca2; /* Deep Sea Green for headings */
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        p {
+            line-height: 1.8; /* Improved readability for paragraphs */
+            margin-bottom: 15px;
+        }
+
+        /* Emoji Styling (Example, adjust as needed) */
+        .emoji {
+            font-size: 1.2em; /* Slightly larger emojis */
+            vertical-align: middle; /* Align with text */
+        }
+
+        /* Vivid Design - Example Accent Colors (customize further) */
+        .accent-color-1 { color: #e67e22; } /* Vibrant Orange */
+        .accent-color-2 { color: #2ecc71; } /* Light Green */
+
     </style>
 </head>
 <body>
     <nav>
-        <a href="/">{% translate "Home" %}</a>
-        <a href="{% url 'face_recognition_page' %}">{% translate "Face Recognition" %}</a>
-        <a href="{% url 'mood_logging_page' %}">{% translate "Mood Logging" %}</a>
-        <a href="{% url 'analysis_page' %}">{% translate "Analysis" %}</a>
+        <a href="/"><span class="emoji">🏠</span> {% translate "Home" %}</a>
+        <a href="{% url 'face_recognition_page' %}"><span class="emoji">😊</span> {% translate "Face Recognition" %}</a>
+        <a href="{% url 'speech_emotion_page' %}"><span class="emoji">🎤</span> {% translate "Speech Emotion" %}</a>  
+        <a href="{% url 'mood_logging_page' %}"><span class="emoji">📝</span> {% translate "Mood Logging" %}</a>
+        <a href="{% url 'analysis_page' %}"><span class="emoji">📊</span> {% translate "Analysis" %}</a>
     </nav>
     <div class="container">
         {% block content %}
             {# Content from child templates will be inserted here #}
         {% endblock %}
     </div>
+    
 </body>
 </html>

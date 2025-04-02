@@ -20,7 +20,7 @@
 
         <!-- Emotion Distribution Section -->
         <section class="analysis-section">
-            <h2>{% translate "Emotion Distribution" %}</h2>
+            <h2>{% translate "Face Emotion Distribution" %}</h2>
             <div class="time-toggle">
                 <button class="toggle-btn active" data-period="week">7 Days</button>
                 <button class="toggle-btn" data-period="month">30 Days</button>
@@ -64,13 +64,7 @@
             <canvas id="speechEmotionChart" width="400" height="200"></canvas>
         </section>
 
-        <!-- Insights & Recommendations Section -->
-        <section class="analysis-section">
-            <h2>{% translate "Insights & Recommendations" %}</h2>
-            <div class="placeholder-text">
-                <p>{% translate "Personalized insights and recommendations coming soon..." %}</p>
-            </div>
-        </section>
+    
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -211,7 +205,7 @@
                         { label: 'Irritability', data: weekMoodData.map(item => item.avg_irritability), backgroundColor: '#f1c40f' },
                         { label: 'Anxiety', data: weekMoodData.map(item => item.avg_anxiety), backgroundColor: '#2ecc71' },
                         { label: 'Energy Level', data: weekMoodData.map(item => item.avg_energy_level), backgroundColor: '#9b59b6' },
-                        { label: 'Sleep Hours', data: weekMoodData.map(item => item.avg_hours_of_sleep), backgroundColor: '#7f8c8d' }
+                        { label: 'Sleep Hours', data: weekMoodData.map(item => item.avg_hours_of_sleep), backgroundColor: '#93B6E8' }
                     ]
                 },
                 options: {
@@ -286,7 +280,7 @@
                     datasets: [{
                         label: 'Mood Variance',
                         data: weekMoodData.map(item => Math.max(item.avg_depressed_mood, item.avg_elevated_mood) - Math.min(item.avg_depressed_mood, item.avg_elevated_mood)),
-                        backgroundColor: '#3498db'
+                        backgroundColor: '#ECBAC4'
                     }]
                 },
                 options: {

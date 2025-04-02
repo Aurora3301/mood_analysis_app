@@ -1,45 +1,38 @@
 import sys
 import os
-
-# Get the directory containing your mood_tracker app
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-# Add the app directory to Python's sys.path if necessary
-sys.path.insert(0, APP_DIR)
-
-from utils.datasets import get_labels
 import cv2
 import numpy as np
 from keras.models import load_model
 from statistics import mode
 from collections import Counter
-from utils.datasets import get_labels  # Adjust path as needed
-from utils.inference import detect_faces  # Adjust path as needed
-from utils.inference import draw_text     # Adjust path as needed
-from utils.inference import draw_bounding_box  # Adjust path as needed
-from utils.inference import apply_offsets  # Adjust path as needed
-from utils.inference import load_detection_model  # Adjust path as needed
+from .utils.datasets import get_labels
+from .utils.inference import draw_text
+from .utils.inference import draw_bounding_box
+from .utils.inference import apply_offsets
 from PIL import Image
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import base64
-from django.conf import settings  # In case you need settings for static paths
-from .models import FaceRecognitionLog  # Your model for logging
+from django.conf import settings
+from .models import FaceRecognitionLog
+import dlib  # Added Dlib import
+
+# Get the directory containing your mood_tracker app
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, APP_DIR)
 
 # --- Configuration and Model Loading ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project base directory
 
 emotion_model_path = os.path.join(BASE_DIR, 'mood_tracker', 'models', 'emotion_model.hdf5')
-face_cascade_path = os.path.join(BASE_DIR, 'mood_tracker', 'models', 'haarcascade_frontalface_default.xml')
-# If you need the labels file, ensure it is in the proper location
 emotion_labels = get_labels('fer2013')
 frame_window = 10
 emotion_offsets = (20, 40)
 
-face_cascade = cv2.CascadeClassifier(face_cascade_path)
-if face_cascade.empty():
-    print("Error loading face cascade!")
+# Initialize Dlib's HOG face detector instead of Haar cascade
+face_detector = dlib.get_frontal_face_detector()
 
 emotion_classifier = load_model(emotion_model_path, compile=False)
 from keras.optimizers import Adam  # type: ignore
@@ -64,18 +57,34 @@ def detect_emotions_in_frame(frame):
     global emotion_window, all_emotions
     gray_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    faces = face_cascade.detectMultiScale(
-        gray_image, scaleFactor=1.1, minNeighbors=5,
-        minSize=(30, 30), flags=cv2.CASCADE_SCALE_IMAGE
-    )
+    
+    # Use Dlib's HOG detector for face detection
+    faces = face_detector(gray_image, 1)  # 1 upsampling layer
+    
     emotions = []
-    for face_coordinates in faces:
+    for face in faces:
+        # Extract coordinates from Dlib rectangle
+        x = face.left()
+        y = face.top()
+        w = face.right() - x
+        h = face.bottom() - y
+        face_coordinates = (x, y, w, h)
+        
+        # Apply offsets for emotion detection
         x1, x2, y1, y2 = apply_offsets(face_coordinates, emotion_offsets)
+        
+        # Clip coordinates to image bounds
+        x1, y1 = max(x1, 0), max(y1, 0)
+        x2, y2 = min(x2, gray_image.shape[1]), min(y2, gray_image.shape[0])
+        if x2 <= x1 or y2 <= y1:
+            continue  # Skip invalid regions
+        
         gray_face = gray_image[y1:y2, x1:x2]
         try:
-            gray_face = cv2.resize(gray_face, (emotion_target_size))
+            gray_face = cv2.resize(gray_face, emotion_target_size)
         except Exception as e:
             continue
+        
         gray_face = preprocess_input(gray_face, True)
         gray_face = np.expand_dims(gray_face, 0)
         gray_face = np.expand_dims(gray_face, -1)
@@ -86,13 +95,15 @@ def detect_emotions_in_frame(frame):
         emotion_window.append(emotion_text)
         all_emotions.append(emotion_text)
         emotions.append(emotion_text)
+        
         if len(emotion_window) > frame_window:
             emotion_window.pop(0)
         try:
             emotion_mode = mode(emotion_window)
         except:
             continue
-        # Define a simple color scheme based on emotion
+        
+        # Define color based on emotion
         if emotion_text == 'angry':
             color = emotion_probability * np.asarray((255, 0, 0))
         elif emotion_text == 'sad':
@@ -103,10 +114,12 @@ def detect_emotions_in_frame(frame):
             color = emotion_probability * np.asarray((0, 255, 255))
         else:
             color = emotion_probability * np.asarray((0, 255, 0))
-        color = color.astype(int)
-        color = color.tolist()
+        color = color.astype(int).tolist()
+        
+        # Draw using original face coordinates
         draw_bounding_box(face_coordinates, rgb_image, color)
         draw_text(face_coordinates, rgb_image, emotion_mode, color, 0, -45, 1, 1)
+    
     return rgb_image, emotions
 
 def get_top_emotions():
@@ -119,19 +132,12 @@ def get_top_emotions():
 
 @csrf_exempt
 def process_face_recognition_frame(request):
-    """
-    Process the incoming face frame:
-      - Decode the base64 image.
-      - Run face detection and emotion recognition.
-      - Return the processed image and emotion data.
-    """
     if request.method == 'POST':
         try:
             image_data = request.POST.get('image')
             if not image_data:
                 return JsonResponse({'error': 'No image data received'}, status=400)
 
-            # Decode the base64 image (remove header if present)
             if ',' in image_data:
                 base64_data = image_data.split(',')[1]
             else:
@@ -145,13 +151,11 @@ def process_face_recognition_frame(request):
             processed_frame, detected_emotions = detect_emotions_in_frame(frame)
             top_emotions = get_top_emotions()
 
-            # Convert processed frame to base64 for display
             is_success, im_buf_arr = cv2.imencode(".jpg", processed_frame)
             if not is_success:
                 return JsonResponse({'error': 'Failed to encode processed image'}, status=500)
             processed_image_base64 = base64.b64encode(im_buf_arr.tobytes()).decode('utf-8')
 
-            # Save detected emotion (if any) to the database; using the dominant emotion for simplicity.
             if detected_emotions:
                 try:
                     dominant_emotion = mode(detected_emotions)

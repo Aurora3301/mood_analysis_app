@@ -1,7 +1,9 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Face Recognition</title>
+{% extends 'mood_tracker/base.html' %}
+{% load i18n %}
+
+{% block content %}
+<!DOCTYPE html> <html>         <head>
+    <title>{% translate "Face Recognition" %}</title>
     <style>
         body { font-family: sans-serif; background-color: #f8f0e3; color: #5e4d3a; }
         .container { width: 80%; margin: 20px auto; text-align: center; }
@@ -9,22 +11,17 @@
         button { padding: 10px 20px; background-color: #a38b72; color: white; border: none; cursor: pointer; }
         button:hover { background-color: #8c7a67; }
         #emotionData { margin-top: 20px; }
-        nav { background-color: #d5cbb2; padding: 10px; margin-bottom: 20px; }
         nav a { color: #5e4d3a; text-decoration: none; margin: 0 15px; }
         nav a:hover { text-decoration: underline; }
     </style>
 </head>
-<body>
-    <nav>
-        <a href="/">Home</a>
-    </nav>
-    <div class="container">
-        <h1>Face Recognition</h1>
+<body>         <div class="container">
+        <h1>{% translate "Face Recognition" %}</h1>
         <video id="videoStream" width="640" height="480" autoplay playsinline></video>
         <canvas id="processedCanvas" width="640" height="480" style="display:none;"></canvas>
         <img id="processedImageDisplay" width="640" height="480" style="display:none;">
-        <button id="startRecognition">Start Recognition</button>
-        <button id="stopRecognition" disabled>Stop Recognition</button>
+        <button id="startRecognition">{% translate "Start Recognition" %}</button>
+        <button id="stopRecognition" disabled>{% translate "Stop Recognition" %}</button>
         <div id="emotionData"></div>
     </div>
 
@@ -52,7 +49,7 @@
                         startFrameProcessing();
                     } catch (error) {
                         console.error("Error accessing webcam:", error);
-                        alert("Error accessing webcam. Please check permissions.");
+                        alert("{% translate 'Error accessing webcam. Please check permissions.' %}");
                     }
                 }
             });
@@ -92,37 +89,37 @@
                         if (!response.ok) {
                             console.error('API request failed:', response.status, response.statusText);
                             stopRecognitionButton.click();
-                            alert('Face recognition processing error. Please try again.');
+                            alert("{% translate 'Face recognition processing error. Please try again.' %}");
                             return;
                         }
                         const data = await response.json();
                         if (data.error) {
                             console.error('Backend error:', data.error);
                             stopRecognitionButton.click();
-                            alert('Backend error: ' + data.error);
+                            alert("{% translate 'Backend error:' %} " + data.error);
                             return;
                         }
                         // Update image display and emotion data
                         processedImageDisplay.src = "data:image/jpeg;base64," + data.processed_image;
-                        let emotionText = "Detected Emotions: ";
+                        let emotionText = "{% translate 'Detected Emotions:' %} ";
                         if (data.detected_emotions && data.detected_emotions.length > 0) {
                             emotionText += data.detected_emotions.join(', ');
                         } else {
-                            emotionText += "None";
+                            emotionText += "{% translate 'None' %}";
                         }
-                        emotionText += "<br>Top Emotions: ";
+                        emotionText += "<br>{% translate 'Top Emotions:' %} ";
                         if (data.top_emotions && Object.keys(data.top_emotions).length > 0) {
                             for (const emotion in data.top_emotions) {
                                 emotionText += `${emotion}: ${data.top_emotions[emotion].toFixed(2)}%, `;
                             }
                         } else {
-                            emotionText += "None";
+                            emotionText += "{% translate 'None' %}";
                         }
                         emotionDataDiv.innerHTML = emotionText;
                     } catch (error) {
                         console.error('Fetch error:', error);
                         stopRecognitionButton.click();
-                        alert('Error communicating with the server.');
+                        alert("{% translate 'Error communicating with the server.' %}");
                     }
                 }, 1000);  // Adjust the interval as needed
             }
@@ -132,5 +129,4 @@
             }
         });
     </script>
-</body>
-</html>
+</body>         </html>        {% endblock %}

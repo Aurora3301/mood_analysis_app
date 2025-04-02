@@ -27,7 +27,7 @@ def real_time_prediction():
         audio = audio / np.max(np.abs(audio))
 
         num_segments = int(duration / segment_duration)
-        segments = [audio[i * segment_samples:(i + 1) * segment_samples] 
+        segments = [audio[i * segment_samples:(i + 1) * segment_samples]
                    for i in range(num_segments)]
 
         predictions = []
@@ -39,7 +39,10 @@ def real_time_prediction():
                 padding = max_frames - mfcc.shape[1]
                 mfcc = np.pad(mfcc, ((0, 0), (0, padding)), mode='constant')
 
-            mfcc_input = mfcc[np.newaxis, ..., np.newaxis]
+            # Transpose the MFCC matrix to match the expected input shape
+            mfcc_transposed = np.transpose(mfcc, (1, 0))
+            mfcc_input = mfcc_transposed[np.newaxis, :]
+
             pred = model.predict(mfcc_input, verbose=0)
             predictions.append(pred[0])
 
