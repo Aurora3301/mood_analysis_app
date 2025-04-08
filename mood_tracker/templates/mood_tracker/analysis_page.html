@@ -18,18 +18,6 @@
             <canvas id="moodTrendChart" width="400" height="200"></canvas>
         </section>
 
-        <!-- Emotion Distribution Section -->
-        <section class="analysis-section">
-            <h2>{% translate "Face Emotion Distribution" %}</h2>
-            <div class="time-toggle">
-                <button class="toggle-btn active" data-period="week">7 Days</button>
-                <button class="toggle-btn" data-period="month">30 Days</button>
-            </div>
-            {{ daily_emotion_counts_week|json_script:"daily_emotion_counts_week_data" }}
-            {{ daily_emotion_counts_month|json_script:"daily_emotion_counts_month_data" }}
-            <canvas id="emotionBubbleChart" width="400" height="200"></canvas>
-        </section>
-
         <!-- Symptoms Distribution Section -->
         <section class="analysis-section">
             <h2>{% translate "Symptoms Distribution" %}</h2>
@@ -42,14 +30,16 @@
             <canvas id="symptomBubbleChart" width="400" height="200"></canvas>
         </section>
 
-        <!-- Mood Swings & Cycles Section -->
+        <!-- Emotion Distribution Section -->
         <section class="analysis-section">
-            <h2>{% translate "Mood Swings & Cycles" %}</h2>
+            <h2>{% translate "Face Emotion Distribution" %}</h2>
             <div class="time-toggle">
                 <button class="toggle-btn active" data-period="week">7 Days</button>
                 <button class="toggle-btn" data-period="month">30 Days</button>
             </div>
-            <canvas id="moodCycleChart" width="400" height="200"></canvas>
+            {{ daily_emotion_counts_week|json_script:"daily_emotion_counts_week_data" }}
+            {{ daily_emotion_counts_month|json_script:"daily_emotion_counts_month_data" }}
+            <canvas id="emotionBubbleChart" width="400" height="200"></canvas>
         </section>
 
         <!-- Speech Emotion Distribution Section -->
@@ -62,6 +52,16 @@
             {{ daily_speech_emotion_week|json_script:"speech_emotion_week" }}
             {{ daily_speech_emotion_month|json_script:"speech_emotion_month" }}
             <canvas id="speechEmotionChart" width="400" height="200"></canvas>
+        </section>
+
+        <!-- Mood Swings & Cycles Section -->
+        <section class="analysis-section">
+            <h2>{% translate "Mood Swings & Cycles" %}</h2>
+            <div class="time-toggle">
+                <button class="toggle-btn active" data-period="week">7 Days</button>
+                <button class="toggle-btn" data-period="month">30 Days</button>
+            </div>
+            <canvas id="moodCycleChart" width="400" height="200"></canvas>
         </section>
 
     
@@ -178,7 +178,7 @@
             });
 
             // Speech emotion fixed order and colors
-            const speechEmotions = ['angry', 'disgust', 'fear', 'happy', 'ps', 'sad', 'neutral'];
+            const speechEmotions = ['angry', 'disgust', 'fear', 'happy', 'neutral','sad', 'surprise'];
             const speechEmotionColors = speechEmotions.reduce((acc, emotion, index) => {
                 acc[emotion] = baseSymptomColors[index % baseSymptomColors.length];
                 return acc;
